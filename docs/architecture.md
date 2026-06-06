@@ -11,4 +11,6 @@ HCP Vault Dedicated Generic HTTP Sink
   -> optional Microsoft Sentinel onboarding and analytics rules
 ```
 
-The Function App validates a shared bearer token, normalizes Vault audit events, and writes to Azure Monitor using its managed identity. The Data Collection Rule maps those records into the custom Log Analytics table. If Sentinel is enabled, the same table becomes available for hunting, analytics rules, incidents, and workbooks.
+The default endpoint is an Azure Function App. It validates a shared bearer token, normalizes Vault audit events, and writes to Azure Monitor using its managed identity. The Data Collection Rule maps those records into the custom Log Analytics table. If Sentinel is enabled, the same table becomes available for hunting, analytics rules, incidents, and workbooks.
+
+For subscriptions that cannot create App Service workers, Terraform can create a Logic Apps Consumption workflow instead by setting `ingestion_endpoint_type = "logic_app"`. The Logic App uses a signed callback URL for ingress and its managed identity to post normalized single-event payloads to the same DCR stream.

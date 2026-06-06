@@ -36,6 +36,17 @@ variable "environment" {
   }
 }
 
+variable "ingestion_endpoint_type" {
+  type        = string
+  description = "HTTPS endpoint Terraform creates for HCP Vault audit log ingestion. Use function_app for the default Azure Function path or logic_app when App Service worker quota is unavailable."
+  default     = "function_app"
+
+  validation {
+    condition     = contains(["function_app", "logic_app"], var.ingestion_endpoint_type)
+    error_message = "ingestion_endpoint_type must be function_app or logic_app."
+  }
+}
+
 variable "log_analytics_retention_days" {
   type        = number
   description = "Retention in days for the Log Analytics workspace."

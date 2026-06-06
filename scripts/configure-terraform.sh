@@ -70,6 +70,7 @@ tenant_id="$(prompt_value "Azure tenant ID" "$default_tenant_id")"
 location="$(prompt_value "Azure region" "eastus")"
 resource_prefix="$(prompt_value "Resource prefix" "hvd-sentinel")"
 environment="$(prompt_value "Environment suffix" "demo")"
+ingestion_endpoint_type="$(prompt_value "Ingestion endpoint type: function_app or logic_app" "function_app")"
 retention_days="$(prompt_value "Log Analytics retention days" "30")"
 sentinel_enabled="$(prompt_bool "Onboard the workspace to Microsoft Sentinel?" "true")"
 create_sentinel_rules="false"
@@ -87,6 +88,8 @@ tenant_id       = "${tenant_id}"
 location        = "${location}"
 resource_prefix = "${resource_prefix}"
 environment     = "${environment}"
+
+ingestion_endpoint_type = "${ingestion_endpoint_type}"
 
 log_analytics_retention_days = ${retention_days}
 sentinel_enabled             = ${sentinel_enabled}

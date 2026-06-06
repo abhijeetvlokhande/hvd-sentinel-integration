@@ -5,6 +5,8 @@ location        = "eastus"
 resource_prefix = "hvd-sentinel"
 environment     = "demo"
 
+ingestion_endpoint_type = "function_app"
+
 log_analytics_retention_days = 30
 sentinel_enabled             = true
 create_sentinel_rules        = false

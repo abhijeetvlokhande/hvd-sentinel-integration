@@ -10,12 +10,23 @@ output "log_analytics_workspace_name" {
 
 output "function_app_name" {
   description = "Function App name."
-  value       = azurerm_linux_function_app.ingest.name
+  value       = local.use_function_app ? azurerm_linux_function_app.ingest[0].name : null
+}
+
+output "logic_app_name" {
+  description = "Logic App workflow name when ingestion_endpoint_type is logic_app."
+  value       = local.use_logic_app ? azurerm_logic_app_workflow.ingest[0].name : null
+}
+
+output "ingestion_endpoint_type" {
+  description = "HTTPS ingestion endpoint type created by Terraform."
+  value       = var.ingestion_endpoint_type
 }
 
 output "function_url" {
-  description = "URL to configure in the HCP Vault Dedicated Generic HTTP Sink."
+  description = "URL to configure in the HCP Vault Dedicated Generic HTTP Sink. For logic_app, this is the signed Logic App callback URL."
   value       = local.function_url
+  sensitive   = true
 }
 
 output "hcp_bearer_token" {

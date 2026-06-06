@@ -11,10 +11,14 @@ locals {
   service_plan_name = "plan-${local.name_base}"
   app_insights_name = "appi-${local.name_base}"
   storage_name      = substr("${local.compact_prefix}${local.compact_env}${random_string.suffix.result}", 0, 24)
+  logic_app_name    = "logic-${local.name_base}"
 
   hcp_bearer_token = coalesce(var.hcp_bearer_token, random_password.hcp_bearer_token.result)
   function_route   = "hcp-vault-ingest"
-  function_url     = "https://${azurerm_linux_function_app.ingest.default_hostname}/api/${local.function_route}"
+
+  use_function_app = var.ingestion_endpoint_type == "function_app"
+  use_logic_app    = var.ingestion_endpoint_type == "logic_app"
+  function_url     = local.use_function_app ? "https://${azurerm_linux_function_app.ingest[0].default_hostname}/api/${local.function_route}" : azurerm_logic_app_trigger_http_request.ingest[0].callback_url
 
   table_output_stream = "Custom-${var.table_name}"
   dce_uri             = jsondecode(azapi_resource.dce.output).properties.logsIngestion.endpoint
@@ -22,12 +26,15 @@ locals {
 
   create_sentinel_rules = var.sentinel_enabled && var.create_sentinel_rules
   required_resource_providers = concat([
-    "Microsoft.Web",
     "Microsoft.OperationalInsights",
     "Microsoft.Insights",
-    "Microsoft.Monitor",
+    "Microsoft.Monitor"
+    ], local.use_function_app ? [
+    "Microsoft.Web",
     "Microsoft.Storage"
-  ], var.sentinel_enabled ? ["Microsoft.SecurityInsights"] : [])
+    ] : [], local.use_logic_app ? [
+    "Microsoft.Logic"
+  ] : [], var.sentinel_enabled ? ["Microsoft.SecurityInsights"] : [])
 }
 
 resource "random_string" "suffix" {
@@ -192,6 +199,8 @@ resource "azapi_resource" "dcr" {
 }
 
 resource "azurerm_storage_account" "this" {
+  count = local.use_function_app ? 1 : 0
+
   name                            = local.storage_name
   resource_group_name             = azurerm_resource_group.this.name
   location                        = azurerm_resource_group.this.location
@@ -202,6 +211,8 @@ resource "azurerm_storage_account" "this" {
 }
 
 resource "azurerm_service_plan" "this" {
+  count = local.use_function_app ? 1 : 0
+
   name                = local.service_plan_name
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
@@ -210,6 +221,8 @@ resource "azurerm_service_plan" "this" {
 }
 
 resource "azurerm_application_insights" "this" {
+  count = local.use_function_app ? 1 : 0
+
   name                = local.app_insights_name
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
@@ -218,13 +231,15 @@ resource "azurerm_application_insights" "this" {
 }
 
 resource "azurerm_linux_function_app" "ingest" {
+  count = local.use_function_app ? 1 : 0
+
   name                = local.function_app_name
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
 
-  service_plan_id            = azurerm_service_plan.this.id
-  storage_account_name       = azurerm_storage_account.this.name
-  storage_account_access_key = azurerm_storage_account.this.primary_access_key
+  service_plan_id            = azurerm_service_plan.this[0].id
+  storage_account_name       = azurerm_storage_account.this[0].name
+  storage_account_access_key = azurerm_storage_account.this[0].primary_access_key
 
   functions_extension_version = "~4"
   https_only                  = true
@@ -240,7 +255,7 @@ resource "azurerm_linux_function_app" "ingest" {
   }
 
   app_settings = {
-    APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.this.connection_string
+    APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.this[0].connection_string
     DCE_URI                               = local.dce_uri
     DCR_ENDPOINT_URI                      = ""
     DCR_IMMUTABLE_ID                      = local.dcr_immutable_id
@@ -252,9 +267,85 @@ resource "azurerm_linux_function_app" "ingest" {
 }
 
 resource "azurerm_role_assignment" "function_monitoring_metrics_publisher" {
+  count = local.use_function_app ? 1 : 0
+
   scope                = azapi_resource.dcr.id
   role_definition_name = "Monitoring Metrics Publisher"
-  principal_id         = azurerm_linux_function_app.ingest.identity[0].principal_id
+  principal_id         = azurerm_linux_function_app.ingest[0].identity[0].principal_id
+}
+
+resource "azurerm_logic_app_workflow" "ingest" {
+  count = local.use_logic_app ? 1 : 0
+
+  name                = local.logic_app_name
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+
+  workflow_schema  = "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#"
+  workflow_version = "1.0.0.0"
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+resource "azurerm_logic_app_trigger_http_request" "ingest" {
+  count = local.use_logic_app ? 1 : 0
+
+  name         = local.function_route
+  logic_app_id = azurerm_logic_app_workflow.ingest[0].id
+  method       = "POST"
+
+  schema = jsonencode({
+    type                 = "object"
+    additionalProperties = true
+  })
+}
+
+resource "azurerm_role_assignment" "logic_app_monitoring_metrics_publisher" {
+  count = local.use_logic_app ? 1 : 0
+
+  scope                = azapi_resource.dcr.id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = azurerm_logic_app_workflow.ingest[0].identity[0].principal_id
+}
+
+resource "azurerm_logic_app_action_custom" "post_to_dcr" {
+  count = local.use_logic_app ? 1 : 0
+
+  name         = "post_to_dcr"
+  logic_app_id = azurerm_logic_app_workflow.ingest[0].id
+
+  body = jsonencode({
+    type = "Http"
+    inputs = {
+      method = "POST"
+      uri    = "${local.dce_uri}/dataCollectionRules/${local.dcr_immutable_id}/streams/${var.stream_name}?api-version=2023-01-01"
+      headers = {
+        "Content-Type" = "application/json"
+      }
+      body = [
+        {
+          eventTime       = "@{coalesce(triggerBody()?['time'], utcNow())}"
+          eventType       = "@{triggerBody()?['type']}"
+          operation       = "@{triggerBody()?['request']?['operation']}"
+          path            = "@{triggerBody()?['request']?['path']}"
+          authDisplayName = "@{triggerBody()?['auth']?['display_name']}"
+          clientIp        = "@{triggerBody()?['request']?['remote_address']}"
+          requestId       = "@{triggerBody()?['request']?['id']}"
+          errorMessage    = "@{triggerBody()?['error']}"
+          rawData         = "@{string(triggerBody())}"
+        }
+      ]
+      authentication = {
+        type     = "ManagedServiceIdentity"
+        audience = "https://monitor.azure.com"
+      }
+    }
+    runAfter = {}
+  })
+
+  depends_on = [azurerm_role_assignment.logic_app_monitoring_metrics_publisher]
 }
 
 resource "azapi_resource" "sentinel_rule_auth_activity_spike" {

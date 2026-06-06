@@ -7,6 +7,7 @@ TF_DIR="${TF_DIR:-${REPO_ROOT}/terraform}"
 
 FUNC_URL="$(terraform -chdir="$TF_DIR" output -raw function_url)"
 HCP_TOKEN="$(terraform -chdir="$TF_DIR" output -raw hcp_bearer_token)"
+INGESTION_ENDPOINT_TYPE="$(terraform -chdir="$TF_DIR" output -raw ingestion_endpoint_type 2>/dev/null || echo "function_app")"
 NOW_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 REQ_ID="smoke-$(date +%s)"
 
@@ -27,10 +28,16 @@ JSON
 )
 
 response_file="$(mktemp)"
+
+curl_headers=(-H "Content-Type: application/json")
+
+if [[ "$INGESTION_ENDPOINT_TYPE" == "function_app" ]]; then
+  curl_headers+=(-H "Authorization: Bearer ${HCP_TOKEN}")
+fi
+
 status=$(curl -sS -o "$response_file" -w "%{http_code}" \
   -X POST "$FUNC_URL" \
-  -H "Authorization: Bearer ${HCP_TOKEN}" \
-  -H "Content-Type: application/json" \
+  "${curl_headers[@]}" \
   --data "$payload")
 
 echo "HTTP ${status}"
@@ -38,7 +45,7 @@ cat "$response_file"
 echo
 rm -f "$response_file"
 
-if [[ "$status" != "200" ]]; then
+if [[ "$status" != "200" && "$status" != "202" ]]; then
   exit 1
 fi
 

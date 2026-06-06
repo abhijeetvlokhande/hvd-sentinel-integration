@@ -2,6 +2,8 @@
 
 This repository deploys the Azure side of an HCP Vault Dedicated audit log streaming pattern. The required path lands Vault audit logs in Azure Log Analytics. Microsoft Sentinel onboarding and starter analytics rules are optional add-ons.
 
+This repo is the companion implementation for the blog post **"Streaming HCP Vault Dedicated audit logs to Microsoft Sentinel"**.
+
 The pattern is:
 
 ```text
@@ -57,6 +59,8 @@ Create a local Terraform variables file. The helper prompts for your Azure regio
 
 For the smallest working pipeline that proves logs land in Azure, answer `no` when asked to create starter Microsoft Sentinel analytics rules. The generated `terraform/terraform.tfvars` file is local-only and ignored by Git.
 
+The default ingestion endpoint is `function_app`, which deploys an Azure Function. If your Azure subscription has zero App Service worker quota, choose `logic_app` when prompted; it creates an Azure Logic Apps Consumption workflow instead and still writes records to the same Log Analytics table through the Data Collection Rule.
+
 You can also copy and edit the example file manually:
 
 ```bash
@@ -75,6 +79,8 @@ Publish the Function App code:
 ```bash
 ./scripts/publish-function.sh
 ```
+
+If you selected `logic_app`, this script exits without publishing because the workflow is fully created by Terraform.
 
 Run an Azure-side smoke test:
 
@@ -99,6 +105,8 @@ In HCP Portal, open your Vault Dedicated cluster and configure:
 - Encoding: `JSON`
 - Compression: disabled for first validation
 
+If `ingestion_endpoint_type = "logic_app"`, the `function_url` output is already a signed callback URL. Use that URL, set the method to `POST`, and do not add a Bearer authorization header.
+
 ## Region selection
 
 The configure helper prompts for the Azure region. If you edit `terraform/terraform.tfvars` manually, set the `location` variable:
@@ -119,6 +127,18 @@ create_sentinel_rules = false
 ```
 
 Use `sentinel_enabled = true` when you want the workspace onboarded to Microsoft Sentinel. Use `create_sentinel_rules = true` only when you want Terraform to create the starter scheduled analytics rules included in this repo.
+
+## App Service quota fallback
+
+Some fresh Azure subscriptions start with no App Service worker quota. If Terraform fails while creating `azurerm_service_plan` with a message such as `Current Limit (Total VMs): 0`, switch the local variables file to the Logic App endpoint:
+
+```hcl
+ingestion_endpoint_type = "logic_app"
+```
+
+Then run `terraform -chdir=terraform apply` again. The `function_url` output will be a signed Logic App callback URL that you can paste into the HCP Vault Dedicated Generic HTTP Sink URL field.
+
+Because the Logic App callback URL already contains its access signature, configure the HCP sink without an additional Bearer token when using this fallback.
 
 ## Security notes
 
