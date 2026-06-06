@@ -1,6 +1,6 @@
-# HCP Vault Dedicated to Microsoft Sentinel integration
+# HCP Vault Dedicated audit logs to Azure and Microsoft Sentinel
 
-This repository deploys the Azure side of an HCP Vault Dedicated audit log streaming pattern for Microsoft Sentinel.
+This repository deploys the Azure side of an HCP Vault Dedicated audit log streaming pattern. The required path lands Vault audit logs in Azure Log Analytics. Microsoft Sentinel onboarding and starter analytics rules are optional add-ons.
 
 The pattern is:
 
@@ -10,7 +10,7 @@ HCP Vault Dedicated Generic HTTP Sink
   -> Azure Monitor Logs Ingestion API
   -> Data Collection Endpoint-backed Data Collection Rule
   -> Log Analytics custom table
-  -> Microsoft Sentinel
+  -> optional Microsoft Sentinel onboarding and analytics rules
 ```
 
 ## What this repo creates
@@ -23,8 +23,11 @@ HCP Vault Dedicated Generic HTTP Sink
 - Linux Python Function App
 - System-assigned managed identity
 - RBAC assignment for the Function App identity
-- Optional Microsoft Sentinel onboarding
-- Optional Microsoft Sentinel scheduled analytics rules
+
+Optional add-ons:
+
+- Microsoft Sentinel onboarding for the Log Analytics workspace
+- Microsoft Sentinel scheduled analytics rules
 
 The HCP Vault Dedicated Generic HTTP Sink configuration remains a portal step. Terraform outputs the URL and bearer token to paste into HCP.
 
@@ -46,13 +49,19 @@ az login
 az account set --subscription "<YOUR_SUBSCRIPTION_ID_OR_NAME>"
 ```
 
-Copy the example variables file and edit it:
+Create a local Terraform variables file. The helper prompts for your Azure region and asks whether to create the optional Sentinel resources:
+
+```bash
+./scripts/configure-terraform.sh
+```
+
+For the smallest working pipeline that proves logs land in Azure, answer `no` when asked to create starter Microsoft Sentinel analytics rules. The generated `terraform/terraform.tfvars` file is local-only and ignored by Git.
+
+You can also copy and edit the example file manually:
 
 ```bash
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 ```
-
-Set your `subscription_id`, `tenant_id`, `location`, `resource_prefix`, and `environment` in `terraform/terraform.tfvars`.
 
 Deploy Azure infrastructure:
 
@@ -92,13 +101,24 @@ In HCP Portal, open your Vault Dedicated cluster and configure:
 
 ## Region selection
 
-Set the `location` variable in `terraform/terraform.tfvars`:
+The configure helper prompts for the Azure region. If you edit `terraform/terraform.tfvars` manually, set the `location` variable:
 
 ```hcl
 location = "eastus"
 ```
 
-Use any Azure region that supports Log Analytics, Azure Functions, Data Collection Endpoints, and Microsoft Sentinel.
+Use any Azure region that supports Log Analytics, Azure Functions, and Data Collection Endpoints. If you enable Sentinel onboarding, use a region where Microsoft Sentinel is available.
+
+## Optional Sentinel resources
+
+The Azure ingestion pipeline does not require Sentinel analytics rules. Set these values in `terraform/terraform.tfvars` or answer the prompts in `./scripts/configure-terraform.sh`:
+
+```hcl
+sentinel_enabled      = true
+create_sentinel_rules = false
+```
+
+Use `sentinel_enabled = true` when you want the workspace onboarded to Microsoft Sentinel. Use `create_sentinel_rules = true` only when you want Terraform to create the starter scheduled analytics rules included in this repo.
 
 ## Security notes
 

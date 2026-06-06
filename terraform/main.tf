@@ -19,6 +19,15 @@ locals {
   table_output_stream = "Custom-${var.table_name}"
   dce_uri             = jsondecode(azapi_resource.dce.output).properties.logsIngestion.endpoint
   dcr_immutable_id    = jsondecode(azapi_resource.dcr.output).properties.immutableId
+
+  create_sentinel_rules = var.sentinel_enabled && var.create_sentinel_rules
+  required_resource_providers = concat([
+    "Microsoft.Web",
+    "Microsoft.OperationalInsights",
+    "Microsoft.Insights",
+    "Microsoft.Monitor",
+    "Microsoft.Storage"
+  ], var.sentinel_enabled ? ["Microsoft.SecurityInsights"] : [])
 }
 
 resource "random_string" "suffix" {
@@ -34,10 +43,21 @@ resource "random_password" "hcp_bearer_token" {
   special = false
 }
 
-resource "random_uuid" "auth_activity_spike_rule" {}
-resource "random_uuid" "secret_enumeration_rule" {}
-resource "random_uuid" "sensitive_path_rule" {}
-resource "random_uuid" "off_hours_rule" {}
+resource "random_uuid" "auth_activity_spike_rule" {
+  count = local.create_sentinel_rules ? 1 : 0
+}
+
+resource "random_uuid" "secret_enumeration_rule" {
+  count = local.create_sentinel_rules ? 1 : 0
+}
+
+resource "random_uuid" "sensitive_path_rule" {
+  count = local.create_sentinel_rules ? 1 : 0
+}
+
+resource "random_uuid" "off_hours_rule" {
+  count = local.create_sentinel_rules ? 1 : 0
+}
 
 resource "null_resource" "register_providers" {
   count = var.register_resource_providers ? 1 : 0
@@ -49,7 +69,7 @@ resource "null_resource" "register_providers" {
   provisioner "local-exec" {
     interpreter = ["/bin/sh", "-c"]
     command     = <<EOT
-for ns in Microsoft.Web Microsoft.OperationalInsights Microsoft.Insights Microsoft.Monitor Microsoft.Storage Microsoft.SecurityInsights; do
+for ns in ${join(" ", local.required_resource_providers)}; do
   az provider register --namespace "$ns" --subscription "${var.subscription_id}" --wait
 done
 EOT
@@ -238,10 +258,10 @@ resource "azurerm_role_assignment" "function_monitoring_metrics_publisher" {
 }
 
 resource "azapi_resource" "sentinel_rule_auth_activity_spike" {
-  count = var.sentinel_enabled && var.create_sentinel_rules ? 1 : 0
+  count = local.create_sentinel_rules ? 1 : 0
 
   type      = "Microsoft.SecurityInsights/alertRules@2024-03-01"
-  name      = random_uuid.auth_activity_spike_rule.result
+  name      = random_uuid.auth_activity_spike_rule[0].result
   parent_id = azurerm_log_analytics_workspace.this.id
 
   body = jsonencode({
@@ -268,10 +288,10 @@ resource "azapi_resource" "sentinel_rule_auth_activity_spike" {
 }
 
 resource "azapi_resource" "sentinel_rule_secret_enumeration" {
-  count = var.sentinel_enabled && var.create_sentinel_rules ? 1 : 0
+  count = local.create_sentinel_rules ? 1 : 0
 
   type      = "Microsoft.SecurityInsights/alertRules@2024-03-01"
-  name      = random_uuid.secret_enumeration_rule.result
+  name      = random_uuid.secret_enumeration_rule[0].result
   parent_id = azurerm_log_analytics_workspace.this.id
 
   body = jsonencode({
@@ -298,10 +318,10 @@ resource "azapi_resource" "sentinel_rule_secret_enumeration" {
 }
 
 resource "azapi_resource" "sentinel_rule_sensitive_path" {
-  count = var.sentinel_enabled && var.create_sentinel_rules ? 1 : 0
+  count = local.create_sentinel_rules ? 1 : 0
 
   type      = "Microsoft.SecurityInsights/alertRules@2024-03-01"
-  name      = random_uuid.sensitive_path_rule.result
+  name      = random_uuid.sensitive_path_rule[0].result
   parent_id = azurerm_log_analytics_workspace.this.id
 
   body = jsonencode({
@@ -328,10 +348,10 @@ resource "azapi_resource" "sentinel_rule_sensitive_path" {
 }
 
 resource "azapi_resource" "sentinel_rule_off_hours" {
-  count = var.sentinel_enabled && var.create_sentinel_rules ? 1 : 0
+  count = local.create_sentinel_rules ? 1 : 0
 
   type      = "Microsoft.SecurityInsights/alertRules@2024-03-01"
-  name      = random_uuid.off_hours_rule.result
+  name      = random_uuid.off_hours_rule[0].result
   parent_id = azurerm_log_analytics_workspace.this.id
 
   body = jsonencode({

@@ -7,10 +7,21 @@ if [[ $# -lt 1 ]]; then
 fi
 
 SUBSCRIPTION="$1"
+INCLUDE_SENTINEL="${INCLUDE_SENTINEL:-false}"
+
+if [[ "${2:-}" == "--sentinel" ]]; then
+  INCLUDE_SENTINEL="true"
+fi
 
 az account set --subscription "$SUBSCRIPTION"
 
-for ns in Microsoft.Web Microsoft.OperationalInsights Microsoft.Insights Microsoft.Monitor Microsoft.Storage Microsoft.SecurityInsights; do
+providers=(Microsoft.Web Microsoft.OperationalInsights Microsoft.Insights Microsoft.Monitor Microsoft.Storage)
+
+if [[ "$INCLUDE_SENTINEL" == "true" ]]; then
+  providers+=(Microsoft.SecurityInsights)
+fi
+
+for ns in "${providers[@]}"; do
   echo "Registering ${ns}"
   az provider register --namespace "$ns" --wait >/dev/null
 done

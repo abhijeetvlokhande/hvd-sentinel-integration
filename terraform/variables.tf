@@ -56,14 +56,14 @@ variable "stream_name" {
 
 variable "sentinel_enabled" {
   type        = bool
-  description = "Onboard the Log Analytics workspace to Microsoft Sentinel."
+  description = "Onboard the Log Analytics workspace to Microsoft Sentinel. This is optional for the base Azure log ingestion pipeline."
   default     = true
 }
 
 variable "create_sentinel_rules" {
   type        = bool
-  description = "Create starter Microsoft Sentinel scheduled analytics rules."
-  default     = true
+  description = "Create starter Microsoft Sentinel scheduled analytics rules. Optional; the base pipeline lands logs without these rules."
+  default     = false
 }
 
 variable "register_resource_providers" {
