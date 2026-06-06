@@ -1,0 +1,13 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+tenant_id       = "00000000-0000-0000-0000-000000000000"
+
+location        = "eastus"
+resource_prefix = "hvd-sentinel"
+environment     = "demo"
+
+log_analytics_retention_days = 30
+sentinel_enabled             = true
+create_sentinel_rules        = true
+
+# Optional. If null, Terraform generates a bearer token.
+hcp_bearer_token = null

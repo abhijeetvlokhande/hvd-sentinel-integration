@@ -1,0 +1,70 @@
+// Confirm Vault audit events are arriving.
+HCPVaultAudit_CL
+| where TimeGenerated > ago(24h)
+| summarize Events = count() by path
+| order by Events desc
+| take 20
+
+// Visualize Vault activity over time.
+HCPVaultAudit_CL
+| where TimeGenerated > ago(24h)
+| summarize Events = count() by bin(TimeGenerated, 15m), path
+| render timechart
+
+// Q1 - Authentication activity spike.
+let Window = 5m;
+let MinAttempts = 10;
+HCPVaultAudit_CL
+| where TimeGenerated > ago(24h)
+| where path startswith "auth/"
+| summarize Attempts = count()
+    by authDisplayName = coalesce(authDisplayName, "unknown"),
+       path,
+       bin(TimeGenerated, Window)
+| where Attempts >= MinAttempts
+| order by Attempts desc
+
+// Q2 - Secret enumeration.
+let Window = 10m;
+let MinDistinctPaths = 3;
+HCPVaultAudit_CL
+| where TimeGenerated > ago(24h)
+| where operation == "read"
+| where path startswith "kv/data/" or path startswith "secret/data/"
+| summarize DistinctPaths = dcount(path),
+            TotalReads = count()
+    by authDisplayName = coalesce(authDisplayName, "unknown"),
+       bin(TimeGenerated, Window)
+| where DistinctPaths >= MinDistinctPaths
+| order by DistinctPaths desc
+
+// Q3 - Sensitive path access.
+let SensitivePaths = dynamic([
+  "auth/token/create",
+  "kv/data/prod/db",
+  "kv/data/prod/root",
+  "auth/jwt/login",
+  "auth/token/revoke",
+  "sys/generate-root/attempt"
+]);
+HCPVaultAudit_CL
+| where TimeGenerated > ago(24h)
+| where operation in ("read", "write", "update", "create", "delete")
+| where path has_any (SensitivePaths)
+| project TimeGenerated, authDisplayName, operation, path, clientIp, requestId
+| order by TimeGenerated desc
+
+// Q4 - Off-hours Vault activity.
+let StartHourUtc = 6;
+let EndHourUtc = 18;
+HCPVaultAudit_CL
+| where TimeGenerated > ago(24h)
+| extend HourUTC = datetime_part("hour", TimeGenerated)
+| where HourUTC < StartHourUtc or HourUTC > EndHourUtc
+| summarize Events = count()
+    by authDisplayName = coalesce(authDisplayName, "unknown"),
+       path,
+       operation,
+       HourUTC,
+       bin(TimeGenerated, 1h)
+| order by TimeGenerated desc
