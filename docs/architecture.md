@@ -2,6 +2,8 @@
 
 The integration streams HCP Vault Dedicated audit logs into Azure without running a log forwarder next to Vault. The base path lands records in a Log Analytics custom table. Microsoft Sentinel onboarding and analytics rules are optional.
 
+The architecture assumes that the HCP Vault Dedicated cluster can make outbound HTTPS requests to the Azure ingestion endpoint. Public clusters can usually reach a public Azure Function App or Logic App callback URL directly. Private clusters or environments with restricted egress need an approved network path, allowlist, proxy, or private connectivity design before audit log streaming can deliver events.
+
 ```text
 HCP Vault Dedicated Generic HTTP Sink
   -> Azure Function App

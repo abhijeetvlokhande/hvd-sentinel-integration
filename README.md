@@ -39,8 +39,13 @@ The HCP Vault Dedicated Generic HTTP Sink configuration remains a portal step. T
 - Azure CLI
 - Azure Functions Core Tools v4
 - An HCP Vault Dedicated cluster on Essentials or Standard tier
+- A network path that allows the HCP Vault Dedicated cluster to make outbound HTTPS requests to the Terraform-created Azure ingestion endpoint
 - Azure permissions to create the resources in this repo
 - Azure permission to create role assignments, such as User Access Administrator or Owner
+
+## Network assumption
+
+This pattern assumes that HCP Vault Dedicated can reach the Azure ingestion endpoint over HTTPS. The example deployment uses a publicly reachable Azure Function App or Logic App callback URL. In production, your HCP Vault Dedicated cluster may be private or subject to egress controls. In that case, make sure routing, firewall, proxy, allowlist, or private connectivity requirements are handled before enabling the Generic HTTP Sink. Terraform creates the Azure ingestion endpoint, but it does not create the network path from your HCP Vault Dedicated cluster to Azure.
 
 ## Quick start
 
