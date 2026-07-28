@@ -50,7 +50,7 @@ let SensitivePaths = dynamic([
 HCPVaultAudit_CL
 | where TimeGenerated > ago(24h)
 | where operation in ("read", "write", "update", "create", "delete")
-| where path has_any (SensitivePaths)
+| where path in (SensitivePaths)
 | project TimeGenerated, authDisplayName, operation, path, clientIp, requestId
 | order by TimeGenerated desc
 
@@ -60,7 +60,7 @@ let EndHourUtc = 18;
 HCPVaultAudit_CL
 | where TimeGenerated > ago(24h)
 | extend HourUTC = datetime_part("hour", TimeGenerated)
-| where HourUTC < StartHourUtc or HourUTC > EndHourUtc
+| where HourUTC < StartHourUtc or HourUTC >= EndHourUtc
 | summarize Events = count()
     by authDisplayName = coalesce(authDisplayName, "unknown"),
        path,
