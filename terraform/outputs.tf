@@ -24,8 +24,14 @@ output "ingestion_endpoint_type" {
 }
 
 output "function_url" {
-  description = "URL to configure in the HCP Vault Dedicated Generic HTTP Sink. For logic_app, this is the signed Logic App callback URL."
+  description = "Raw signed URL (may contain percent-encoded characters). Use hcp_sink_url instead when configuring the HCP Vault Dedicated Generic HTTP Sink."
   value       = local.function_url
+  sensitive   = true
+}
+
+output "hcp_sink_url" {
+  description = "Paste-ready URL for the HCP Vault Dedicated Generic HTTP Sink. For logic_app the %2F sequences in the sp= parameter are decoded to / so HCP does not double-encode the SAS signature and cause silent 401 errors."
+  value       = local.use_logic_app ? replace(azurerm_logic_app_trigger_http_request.ingest[0].callback_url, "%2F", "/") : local.function_url
   sensitive   = true
 }
 

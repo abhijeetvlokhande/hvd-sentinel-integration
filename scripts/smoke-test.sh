@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TF_DIR="${TF_DIR:-${REPO_ROOT}/terraform}"
 
-FUNC_URL="$(terraform -chdir="$TF_DIR" output -raw function_url)"
+FUNC_URL="$(terraform -chdir="$TF_DIR" output -raw hcp_sink_url)"
 HCP_TOKEN="$(terraform -chdir="$TF_DIR" output -raw hcp_bearer_token)"
 INGESTION_ENDPOINT_TYPE="$(terraform -chdir="$TF_DIR" output -raw ingestion_endpoint_type 2>/dev/null || echo "function_app")"
 NOW_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"

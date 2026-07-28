@@ -310,6 +310,19 @@ resource "azurerm_role_assignment" "logic_app_monitoring_metrics_publisher" {
   principal_id         = azurerm_logic_app_workflow.ingest[0].identity[0].principal_id
 }
 
+resource "azurerm_logic_app_action_custom" "normalize_events" {
+  count = local.use_logic_app ? 1 : 0
+
+  name         = "normalize_events"
+  logic_app_id = azurerm_logic_app_workflow.ingest[0].id
+
+  body = jsonencode({
+    type     = "Compose"
+    inputs   = "@if(contains(string(triggerBody()), '[{'), triggerBody(), createArray(triggerBody()))"
+    runAfter = {}
+  })
+}
+
 resource "azurerm_logic_app_action_custom" "post_to_dcr" {
   count = local.use_logic_app ? 1 : 0
 
@@ -317,35 +330,47 @@ resource "azurerm_logic_app_action_custom" "post_to_dcr" {
   logic_app_id = azurerm_logic_app_workflow.ingest[0].id
 
   body = jsonencode({
-    type = "Http"
-    inputs = {
-      method = "POST"
-      uri    = "${local.dce_uri}/dataCollectionRules/${local.dcr_immutable_id}/streams/${var.stream_name}?api-version=2023-01-01"
-      headers = {
-        "Content-Type" = "application/json"
-      }
-      body = [
-        {
-          eventTime       = "@{coalesce(triggerBody()?['time'], utcNow())}"
-          eventType       = "@{triggerBody()?['type']}"
-          operation       = "@{triggerBody()?['request']?['operation']}"
-          path            = "@{triggerBody()?['request']?['path']}"
-          authDisplayName = "@{triggerBody()?['auth']?['display_name']}"
-          clientIp        = "@{triggerBody()?['request']?['remote_address']}"
-          requestId       = "@{triggerBody()?['request']?['id']}"
-          errorMessage    = "@{triggerBody()?['error']}"
-          rawData         = "@{string(triggerBody())}"
+    type    = "Foreach"
+    foreach = "@outputs('normalize_events')"
+    actions = {
+      post_to_dcr_http = {
+        type = "Http"
+        inputs = {
+          method = "POST"
+          uri    = "${local.dce_uri}/dataCollectionRules/${local.dcr_immutable_id}/streams/${var.stream_name}?api-version=2023-01-01"
+          headers = {
+            "Content-Type" = "application/json"
+          }
+          body = [
+            {
+              eventTime       = "@{coalesce(items('post_to_dcr')?['time'], utcNow())}"
+              eventType       = "@{items('post_to_dcr')?['type']}"
+              operation       = "@{items('post_to_dcr')?['request']?['operation']}"
+              path            = "@{items('post_to_dcr')?['request']?['path']}"
+              authDisplayName = "@{items('post_to_dcr')?['auth']?['display_name']}"
+              clientIp        = "@{items('post_to_dcr')?['request']?['remote_address']}"
+              requestId       = "@{items('post_to_dcr')?['request']?['id']}"
+              errorMessage    = "@{items('post_to_dcr')?['error']}"
+              rawData         = "@{string(items('post_to_dcr'))}"
+            }
+          ]
+          authentication = {
+            type     = "ManagedServiceIdentity"
+            audience = "https://monitor.azure.com"
+          }
         }
-      ]
-      authentication = {
-        type     = "ManagedServiceIdentity"
-        audience = "https://monitor.azure.com"
+        runAfter = {}
       }
     }
-    runAfter = {}
+    runAfter = {
+      normalize_events = ["Succeeded"]
+    }
   })
 
-  depends_on = [azurerm_role_assignment.logic_app_monitoring_metrics_publisher]
+  depends_on = [
+    azurerm_logic_app_action_custom.normalize_events,
+    azurerm_role_assignment.logic_app_monitoring_metrics_publisher
+  ]
 }
 
 resource "azapi_resource" "sentinel_rule_auth_activity_spike" {

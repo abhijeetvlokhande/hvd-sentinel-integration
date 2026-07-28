@@ -8,7 +8,8 @@ The pattern is:
 
 ```text
 HCP Vault Dedicated Generic HTTP Sink
-  -> Azure Function App
+  -> Azure Function App  (default)
+     or Azure Logic App  (fallback when App Service quota is unavailable)
   -> Azure Monitor Logs Ingestion API
   -> Data Collection Endpoint-backed Data Collection Rule
   -> Log Analytics custom table
@@ -22,9 +23,10 @@ HCP Vault Dedicated Generic HTTP Sink
 - Custom table `HCPVaultAudit_CL`
 - Data Collection Endpoint (DCE)
 - Data Collection Rule (DCR)
-- Linux Python Function App
-- System-assigned managed identity
-- RBAC assignment for the Function App identity
+- Linux Python Function App (when `ingestion_endpoint_type = "function_app"`)
+  or Azure Logic App Consumption workflow (when `ingestion_endpoint_type = "logic_app"`)
+- System-assigned managed identity on whichever endpoint is created
+- RBAC assignment (`Monitoring Metrics Publisher` on the DCR) for that identity
 
 Optional add-ons:
 
@@ -96,21 +98,21 @@ Run an Azure-side smoke test:
 Get the values for HCP Vault Dedicated:
 
 ```bash
-terraform -chdir=terraform output -raw function_url
+terraform -chdir=terraform output -raw hcp_sink_url
 terraform -chdir=terraform output -raw hcp_bearer_token
 ```
 
 In HCP Portal, open your Vault Dedicated cluster and configure:
 
 - Audit Logs -> Enable log streaming -> Generic HTTP Sink
-- URL: Terraform `function_url` output
+- URL: Terraform `hcp_sink_url` output
 - Method: `POST`
 - Auth strategy: `Bearer`
 - Token: Terraform `hcp_bearer_token` output
 - Encoding: `JSON`
 - Compression: disabled for first validation
 
-If `ingestion_endpoint_type = "logic_app"`, the `function_url` output is already a signed callback URL. Use that URL, set the method to `POST`, and do not add a Bearer authorization header.
+If `ingestion_endpoint_type = "logic_app"`, the `hcp_sink_url` output is already a signed and URL-decoded callback URL. Use that URL, set the method to `POST`, and do not add a Bearer authorization header.
 
 ## Region selection
 
@@ -141,7 +143,7 @@ Some fresh Azure subscriptions start with no App Service worker quota. If Terraf
 ingestion_endpoint_type = "logic_app"
 ```
 
-Then run `terraform -chdir=terraform apply` again. The `function_url` output will be a signed Logic App callback URL that you can paste into the HCP Vault Dedicated Generic HTTP Sink URL field.
+Then run `terraform -chdir=terraform apply` again. Use the `hcp_sink_url` output (not `function_url`) when configuring the HCP Vault Dedicated Generic HTTP Sink. The `hcp_sink_url` output is URL-decoded so that the `sp=` parameter contains `/` characters rather than `%2F`. Pasting the raw `function_url` value into the HCP sink UI causes double-encoding (`%252F`) which breaks the SAS signature and results in silent 401 errors.
 
 Because the Logic App callback URL already contains its access signature, configure the HCP sink without an additional Bearer token when using this fallback.
 
