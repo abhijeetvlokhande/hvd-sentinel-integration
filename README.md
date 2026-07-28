@@ -2,7 +2,7 @@
 
 This repository deploys the Azure side of an HCP Vault Dedicated audit log streaming pattern. The required path lands Vault audit logs in Azure Log Analytics. Microsoft Sentinel onboarding and starter analytics rules are optional add-ons.
 
-This repo is the companion implementation for the blog post **"Streaming HCP Vault Dedicated audit logs to Microsoft Sentinel"**.
+This repo is the companion implementation for the blog post **"Stream HCP Vault Dedicated audit logs to Microsoft Sentinel"**.
 
 The pattern is:
 
