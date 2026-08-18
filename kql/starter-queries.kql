@@ -17,7 +17,9 @@ let MinAttempts = 10;
 HCPVaultAudit_CL
 | where TimeGenerated > ago(1h)
 | where path startswith "auth/"
-| summarize Attempts = count()
+| summarize Attempts = count(),
+            clientIp = take_any(clientIp),
+            DistinctClientIps = dcount(clientIp)
     by authDisplayName = coalesce(authDisplayName, "unknown"),
        path,
        bin(TimeGenerated, Window)
@@ -62,7 +64,8 @@ HCPVaultAudit_CL
 | where TimeGenerated > ago(24h)
 | extend HourUTC = datetime_part("hour", TimeGenerated)
 | where HourUTC < StartHourUtc or HourUTC >= EndHourUtc
-| summarize Events = count()
+| summarize Events = count(),
+            clientIp = take_any(clientIp)
     by authDisplayName = coalesce(authDisplayName, "unknown"),
        path,
        operation,

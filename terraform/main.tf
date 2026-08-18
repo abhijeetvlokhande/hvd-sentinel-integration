@@ -400,7 +400,7 @@ resource "azapi_resource" "sentinel_rule_auth_activity_spike" {
       entityMappings = [
         {
           entityType = "Account"
-          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+          fieldMappings = [{ identifier = "Name", columnName = "authDisplayName" }]
         },
         {
           entityType = "IP"
@@ -440,7 +440,7 @@ resource "azapi_resource" "sentinel_rule_secret_enumeration" {
       entityMappings = [
         {
           entityType = "Account"
-          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+          fieldMappings = [{ identifier = "Name", columnName = "authDisplayName" }]
         }
       ]
     }
@@ -469,14 +469,14 @@ resource "azapi_resource" "sentinel_rule_sensitive_path" {
       triggerOperator       = "GreaterThan"
       triggerThreshold      = 0
       tactics               = ["CredentialAccess"]
-      suppressionDuration   = "PT2H"
+      suppressionDuration   = "PT1H"
       suppressionEnabled    = true
       eventGroupingSettings = { aggregationKind = "SingleAlert" }
       incidentConfiguration = { createIncident = true }
       entityMappings = [
         {
           entityType = "Account"
-          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+          fieldMappings = [{ identifier = "Name", columnName = "authDisplayName" }]
         },
         {
           entityType = "IP"
@@ -516,7 +516,7 @@ resource "azapi_resource" "sentinel_rule_off_hours" {
       entityMappings = [
         {
           entityType = "Account"
-          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+          fieldMappings = [{ identifier = "Name", columnName = "authDisplayName" }]
         },
         {
           entityType = "IP"
