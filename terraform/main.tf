@@ -297,8 +297,8 @@ resource "azurerm_logic_app_trigger_http_request" "ingest" {
   method       = "POST"
 
   schema = jsonencode({
-    type                 = "object"
-    additionalProperties = true
+    type  = "array"
+    items = { type = "object", additionalProperties = true }
   })
 }
 
@@ -387,16 +387,26 @@ resource "azapi_resource" "sentinel_rule_auth_activity_spike" {
       description           = "Detects spikes in auth endpoint activity in HCP Vault audit events."
       enabled               = true
       query                 = local.kql_auth_activity_spike
-      queryFrequency        = "PT5M"
+      queryFrequency        = "PT30M"
       queryPeriod           = "PT1H"
       severity              = "Medium"
       triggerOperator       = "GreaterThan"
       triggerThreshold      = 0
       tactics               = ["CredentialAccess"]
       suppressionDuration   = "PT1H"
-      suppressionEnabled    = false
+      suppressionEnabled    = true
       eventGroupingSettings = { aggregationKind = "SingleAlert" }
       incidentConfiguration = { createIncident = true }
+      entityMappings = [
+        {
+          entityType = "Account"
+          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+        },
+        {
+          entityType = "IP"
+          fieldMappings = [{ identifier = "Address", columnName = "clientIp" }]
+        }
+      ]
     }
   })
 
@@ -417,16 +427,22 @@ resource "azapi_resource" "sentinel_rule_secret_enumeration" {
       description           = "Detects one identity reading many distinct secret paths in a short window."
       enabled               = true
       query                 = local.kql_secret_enumeration
-      queryFrequency        = "PT10M"
+      queryFrequency        = "PT1H"
       queryPeriod           = "PT2H"
       severity              = "Medium"
       triggerOperator       = "GreaterThan"
       triggerThreshold      = 0
       tactics               = ["Discovery"]
-      suppressionDuration   = "PT1H"
-      suppressionEnabled    = false
+      suppressionDuration   = "PT2H"
+      suppressionEnabled    = true
       eventGroupingSettings = { aggregationKind = "SingleAlert" }
       incidentConfiguration = { createIncident = true }
+      entityMappings = [
+        {
+          entityType = "Account"
+          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+        }
+      ]
     }
   })
 
@@ -447,16 +463,26 @@ resource "azapi_resource" "sentinel_rule_sensitive_path" {
       description           = "Detects access to sensitive Vault paths."
       enabled               = true
       query                 = local.kql_sensitive_path_access
-      queryFrequency        = "PT10M"
+      queryFrequency        = "PT1H"
       queryPeriod           = "PT2H"
       severity              = "High"
       triggerOperator       = "GreaterThan"
       triggerThreshold      = 0
       tactics               = ["CredentialAccess"]
-      suppressionDuration   = "PT1H"
-      suppressionEnabled    = false
+      suppressionDuration   = "PT2H"
+      suppressionEnabled    = true
       eventGroupingSettings = { aggregationKind = "SingleAlert" }
       incidentConfiguration = { createIncident = true }
+      entityMappings = [
+        {
+          entityType = "Account"
+          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+        },
+        {
+          entityType = "IP"
+          fieldMappings = [{ identifier = "Address", columnName = "clientIp" }]
+        }
+      ]
     }
   })
 
@@ -477,16 +503,26 @@ resource "azapi_resource" "sentinel_rule_off_hours" {
       description           = "Detects off-hours secret access activity."
       enabled               = true
       query                 = local.kql_off_hours_vault_activity
-      queryFrequency        = "PT15M"
+      queryFrequency        = "PT6H"
       queryPeriod           = "P1D"
       severity              = "Low"
       triggerOperator       = "GreaterThan"
       triggerThreshold      = 0
       tactics               = ["Collection"]
-      suppressionDuration   = "PT1H"
-      suppressionEnabled    = false
+      suppressionDuration   = "P1D"
+      suppressionEnabled    = true
       eventGroupingSettings = { aggregationKind = "SingleAlert" }
       incidentConfiguration = { createIncident = true }
+      entityMappings = [
+        {
+          entityType = "Account"
+          fieldMappings = [{ identifier = "FullName", columnName = "authDisplayName" }]
+        },
+        {
+          entityType = "IP"
+          fieldMappings = [{ identifier = "Address", columnName = "clientIp" }]
+        }
+      ]
     }
   })
 

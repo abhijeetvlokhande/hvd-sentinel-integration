@@ -3,7 +3,7 @@ locals {
 let Window = 5m;
 let MinAttempts = 10;
 HCPVaultAudit_CL
-| where TimeGenerated > ago(24h)
+| where TimeGenerated > ago(1h)
 | where path startswith "auth/"
 | summarize Attempts = count()
     by authDisplayName = coalesce(authDisplayName, "unknown"),
@@ -17,7 +17,7 @@ KQL
 let Window = 10m;
 let MinDistinctPaths = 3;
 HCPVaultAudit_CL
-| where TimeGenerated > ago(24h)
+| where TimeGenerated > ago(2h)
 | where operation == "read"
 | where path startswith "kv/data/" or path startswith "secret/data/"
 | summarize DistinctPaths = dcount(path),
@@ -38,8 +38,8 @@ let SensitivePaths = dynamic([
   "sys/generate-root/attempt"
 ]);
 HCPVaultAudit_CL
-| where TimeGenerated > ago(24h)
-| where operation in ("read", "write", "update", "create", "delete")
+| where TimeGenerated > ago(2h)
+| where operation in ("read", "create", "update", "patch", "delete", "list")
 | where path in (SensitivePaths)
 | project TimeGenerated, authDisplayName, operation, path, clientIp, requestId
 | order by TimeGenerated desc

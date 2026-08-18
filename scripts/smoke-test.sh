@@ -12,18 +12,20 @@ NOW_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 REQ_ID="smoke-$(date +%s)"
 
 payload=$(cat <<JSON
-{
-  "time": "${NOW_UTC}",
-  "type": "request",
-  "auth": { "display_name": "smoke-test-user" },
-  "request": {
-    "id": "${REQ_ID}",
-    "operation": "read",
-    "path": "kv/data/demo",
-    "remote_address": "10.10.10.10"
-  },
-  "error": ""
-}
+[
+  {
+    "time": "${NOW_UTC}",
+    "type": "request",
+    "auth": { "display_name": "smoke-test-user" },
+    "request": {
+      "id": "${REQ_ID}",
+      "operation": "read",
+      "path": "kv/data/demo",
+      "remote_address": "10.10.10.10"
+    },
+    "error": ""
+  }
+]
 JSON
 )
 

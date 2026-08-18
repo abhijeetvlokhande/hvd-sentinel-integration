@@ -2,7 +2,6 @@
 # run-full-test.sh
 # One-shot script: preflight → terraform init/apply → publish → smoke test
 # Usage: bash run-full-test.sh
-# Paste the full terminal output back to Bob when done.
 
 set -euo pipefail
 
@@ -77,6 +76,7 @@ echo "── Step 8: Smoke test ──"
 echo ""
 echo "================================================"
 echo " All steps complete."
-echo " Paste this full output back to Bob."
-echo " Bob will give you the HCP Vault sink settings."
+echo " Run: terraform -chdir=terraform output -raw hcp_sink_url"
+echo " Run: terraform -chdir=terraform output -raw hcp_bearer_token"
+echo " Use these values to configure the HCP Vault Dedicated Generic HTTP Sink."
 echo "================================================"

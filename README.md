@@ -167,6 +167,8 @@ HCPVaultAudit_CL
 
 More validation and detection queries are in [`kql/starter-queries.kql`](kql/starter-queries.kql).
 
+> **Note:** The four detection queries exist in two places — [`kql/starter-queries.kql`](kql/starter-queries.kql) for interactive hunting and [`terraform/kql.tf`](terraform/kql.tf) as Terraform locals used by the scheduled analytics rules. If you edit a detection query, update both files to keep them in sync.
+
 ## Cleanup
 
 Remove the HCP Generic HTTP Sink destination first, then destroy Azure resources:

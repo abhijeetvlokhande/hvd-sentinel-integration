@@ -11,11 +11,11 @@ HCPVaultAudit_CL
 | summarize Events = count() by bin(TimeGenerated, 15m), path
 | render timechart
 
-// Q1 - Authentication activity spike.
+// Q1 - Authentication activity spike. (window matches rule queryPeriod PT1H)
 let Window = 5m;
 let MinAttempts = 10;
 HCPVaultAudit_CL
-| where TimeGenerated > ago(24h)
+| where TimeGenerated > ago(1h)
 | where path startswith "auth/"
 | summarize Attempts = count()
     by authDisplayName = coalesce(authDisplayName, "unknown"),
@@ -24,11 +24,11 @@ HCPVaultAudit_CL
 | where Attempts >= MinAttempts
 | order by Attempts desc
 
-// Q2 - Secret enumeration.
+// Q2 - Secret enumeration. (window matches rule queryPeriod PT2H)
 let Window = 10m;
 let MinDistinctPaths = 3;
 HCPVaultAudit_CL
-| where TimeGenerated > ago(24h)
+| where TimeGenerated > ago(2h)
 | where operation == "read"
 | where path startswith "kv/data/" or path startswith "secret/data/"
 | summarize DistinctPaths = dcount(path),
@@ -38,7 +38,8 @@ HCPVaultAudit_CL
 | where DistinctPaths >= MinDistinctPaths
 | order by DistinctPaths desc
 
-// Q3 - Sensitive path access.
+// Q3 - Sensitive path access. (window matches rule queryPeriod PT2H)
+// "write" is a Vault CLI verb, not an audit operation value — replaced with patch and list.
 let SensitivePaths = dynamic([
   "auth/token/create",
   "kv/data/prod/db",
@@ -48,13 +49,13 @@ let SensitivePaths = dynamic([
   "sys/generate-root/attempt"
 ]);
 HCPVaultAudit_CL
-| where TimeGenerated > ago(24h)
-| where operation in ("read", "write", "update", "create", "delete")
+| where TimeGenerated > ago(2h)
+| where operation in ("read", "create", "update", "patch", "delete", "list")
 | where path in (SensitivePaths)
 | project TimeGenerated, authDisplayName, operation, path, clientIp, requestId
 | order by TimeGenerated desc
 
-// Q4 - Off-hours Vault activity.
+// Q4 - Off-hours Vault activity. (window matches rule queryPeriod P1D)
 let StartHourUtc = 6;
 let EndHourUtc = 18;
 HCPVaultAudit_CL
